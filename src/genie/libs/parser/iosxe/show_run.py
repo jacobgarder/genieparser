@@ -59,7 +59,7 @@ class ShowRunPolicyMapSchema(MetaParser):
 #   * 'show run policy-map {name}'
 # ===================================
 class ShowRunPolicyMap(ShowRunPolicyMapSchema):
-	
+
 	''' Parser for
 		* "show run policy-map {name}"
 	'''
@@ -215,7 +215,6 @@ class ShowRunInterfaceSchema(MetaParser):
                 Optional('authentication_timer_reauthenticate_server'): bool,
                 Optional('authentication_violation'): str,
 				Optional('carrier_delay'): list,
-				Optional('shutdown'): bool,
 				Optional('encapsulation_dot1q'): str,
                 Optional('description'): str,
                 Optional('dot1x_pae_authenticator'): bool,
@@ -224,6 +223,8 @@ class ShowRunInterfaceSchema(MetaParser):
                 Optional('dot1x_timeout_tx_period'): str,
                 Optional('ip_arp_inspection_limit_rate'): str,
                 Optional('ip_dhcp_snooping_limit_rate'): str,
+				# ADDED BY TEMPMIDUS
+				Optional('tunnel_dest_ipv4'): str,
 				Optional('ip_ospf'): {
                     Any(): {
                         'area': str,
@@ -267,7 +268,7 @@ class ShowRunInterfaceSchema(MetaParser):
 #   * show running-config interface {interface}
 # ==================================================
 class ShowRunInterface(ShowRunInterfaceSchema):
-	
+
 	''' Parser for
 		* show running-config interface {interface}
 	'''
@@ -415,6 +416,9 @@ class ShowRunInterface(ShowRunInterfaceSchema):
 		# channel-group 1 mode active
 		p41 = re.compile(r'^channel-group +(?P<group>[\d]+) +mode +(?P<mode>[\w]+)$')
 
+		# tunnel destination ip ADDED BY TEMPMIDUS
+		p42 = re.compile(r'^tunnel +destination +(?P<ip>[\S]+)$')
+
 		for line in output.splitlines():
 			line = line.strip()
 
@@ -424,14 +428,14 @@ class ShowRunInterface(ShowRunInterfaceSchema):
 				interface = m.groupdict()['interface']
 				intf_dict = config_dict.setdefault('interfaces', {}).setdefault(interface, {})
 				continue
-			
+
 			# description ISE Controlled Port
 			m = p2.match(line)
 			if m:
 				description = m.groupdict()['description']
 				intf_dict.update({'description': description})
 				continue
-			
+
 			# vrf forwarding Mgmt-intf
 			m = p3.match(line)
 			if m:
@@ -448,7 +452,7 @@ class ShowRunInterface(ShowRunInterfaceSchema):
 									'netmask': group['netmask']},
 								})
 				continue
-			
+
 			# ipv6 address 2001:db8:4:1::1/64
 			m = p5.match(line)
 			if m:
@@ -513,14 +517,14 @@ class ShowRunInterface(ShowRunInterfaceSchema):
 				group = m.groupdict()
 				intf_dict.update({'switchport_mode': group['switchport_mode']})
 				continue
-			
+
 			# switchport nonegotiate
 			m = p14.match(line)
 			if m:
 				group = m.groupdict()
 				intf_dict.update({'switchport_nonegotiate': group['nonegotiate']})
 				continue
-			
+
 			# ip arp inspection limit rate 1024
 			m = p15.match(line)
 			if m:
@@ -534,7 +538,7 @@ class ShowRunInterface(ShowRunInterfaceSchema):
 				group = m.groupdict()
 				intf_dict.update({'load_interval': group['load_interval']})
 				continue
-			
+
 			# authentication control-direction
 			m = p17.match(line)
 			if m:
@@ -728,6 +732,14 @@ class ShowRunInterface(ShowRunInterfaceSchema):
 				chg = group['group']
 				mode = group['mode']
 				intf_dict.setdefault('channel-group', {}).setdefault(chg, {}).update({'mode': mode})
+				continue
+
+			# tunnel destination ip ADDED BY TEMPMIDUS
+
+			m = p42.match(line)
+			if m:
+				group = m.groupdict()
+				intf_dict.update({'tunnel_dest_ipv4':group['ip']})
 				continue
 
 		return config_dict
